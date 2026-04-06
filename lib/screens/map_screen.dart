@@ -31,6 +31,9 @@ class _MapScreenState extends State<MapScreen> {
   List<Building> _buildings = [];
   String? _currentBuildingName;
 
+  // 운동장 변 기준 회전 각도
+  static const double _mapRotation = 36.2;
+
   @override
   void initState() {
     super.initState();
@@ -38,12 +41,9 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _initLocation() async {
-    // 건물 데이터 로드
     try {
       _buildings = await Building.loadFromAsset();
-    } catch (_) {
-      // 건물 데이터 로드 실패 시 빈 목록으로 진행
-    }
+    } catch (_) {}
 
     final granted = await _locationService.requestPermissions();
     if (!granted) {
@@ -95,7 +95,7 @@ class _MapScreenState extends State<MapScreen> {
   void _onMapReady() {
     _mapReady = true;
     if (_currentPosition != null) {
-      _mapController.move(_currentPosition!, 16.0);
+      _mapController.move(_currentPosition!, 17.0);
     }
   }
 
@@ -103,6 +103,7 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
+        backgroundColor: Colors.white,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -118,6 +119,7 @@ class _MapScreenState extends State<MapScreen> {
 
     if (_error != null) {
       return Scaffold(
+        backgroundColor: Colors.white,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -150,71 +152,82 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: _currentPosition ?? const LatLng(37.6105, 126.9968),
-              initialZoom: 16.0,
-              onMapReady: _onMapReady,
-              onPositionChanged: (camera, hasGesture) {
-                if (hasGesture && _isFollowing) {
-                  setState(() => _isFollowing = false);
-                }
-              },
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.location_tracker',
+          Container(
+            color: Colors.white,
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _currentPosition ?? const LatLng(37.6105, 126.9968),
+                initialZoom: 17.0,
+                initialRotation: _mapRotation,
+                onMapReady: _onMapReady,
+                onPositionChanged: (camera, hasGesture) {
+                  if (hasGesture && _isFollowing) {
+                    setState(() => _isFollowing = false);
+                  }
+                },
+                // 줌 범위 제한
+                minZoom: 15,
+                maxZoom: 20,
               ),
-              // 건물 폴리곤 레이어
-              if (_buildings.isNotEmpty)
-                PolygonLayer(
-                  polygons: _buildings.map((b) {
-                    final isInside = _currentBuildingName == b.name;
-                    return Polygon(
-                      points: b.polygon,
-                      color: b.color.withValues(alpha: isInside ? 0.4 : 0.2),
-                      borderColor: b.color,
-                      borderStrokeWidth: isInside ? 3.0 : 1.5,
-                      label: b.name,
-                      labelStyle: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 12,
-                        fontWeight: isInside ? FontWeight.bold : FontWeight.normal,
+              children: [
+                // OSM 타일 없음 — 흰 배경 위에 건물만 표시
+
+                // 건물 폴리곤 레이어
+                if (_buildings.isNotEmpty)
+                  PolygonLayer(
+                    polygons: _buildings.map((b) {
+                      final isInside = _currentBuildingName == b.name;
+                      return Polygon(
+                        points: b.polygon,
+                        color: b.color.withValues(alpha: isInside ? 0.5 : 0.25),
+                        borderColor: b.color,
+                        borderStrokeWidth: isInside ? 3.0 : 2.0,
+                        label: b.name,
+                        labelStyle: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 13,
+                          fontWeight: isInside ? FontWeight.bold : FontWeight.w500,
+                        ),
+                        labelPlacement: PolygonLabelPlacement.centroid,
+                      );
+                    }).toList(),
+                  ),
+
+                // 정확도 원
+                if (_currentPosition != null)
+                  CircleLayer(
+                    circles: [
+                      CircleMarker(
+                        point: _currentPosition!,
+                        radius: _currentAccuracy,
+                        useRadiusInMeter: true,
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderColor: Colors.blue.withValues(alpha: 0.3),
+                        borderStrokeWidth: 1.0,
                       ),
-                      labelPlacement: PolygonLabelPlacement.centroid,
-                    );
-                  }).toList(),
-                ),
-              if (_currentPosition != null)
-                CircleLayer(
-                  circles: [
-                    CircleMarker(
-                      point: _currentPosition!,
-                      radius: _currentAccuracy,
-                      useRadiusInMeter: true,
-                      color: Colors.blue.withValues(alpha: 0.15),
-                      borderColor: Colors.blue.withValues(alpha: 0.5),
-                      borderStrokeWidth: 1.5,
-                    ),
-                  ],
-                ),
-              if (_currentPosition != null)
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _currentPosition!,
-                      width: 20,
-                      height: 20,
-                      child: const LocationMarkerWidget(),
-                    ),
-                  ],
-                ),
-            ],
+                    ],
+                  ),
+
+                // 위치 마커
+                if (_currentPosition != null)
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: _currentPosition!,
+                        width: 20,
+                        height: 20,
+                        child: const LocationMarkerWidget(),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
           ),
+
           // 상단 정보바
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
@@ -223,8 +236,9 @@ class _MapScreenState extends State<MapScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.95),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
                 boxShadow: const [
                   BoxShadow(color: Colors.black12, blurRadius: 8),
                 ],
@@ -232,7 +246,6 @@ class _MapScreenState extends State<MapScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 현재 건물 표시
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -258,18 +271,17 @@ class _MapScreenState extends State<MapScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  // 좌표 정보
                   Text(
                     '위도: ${_currentPosition!.latitude.toStringAsFixed(6)}  '
-                    '경도: ${_currentPosition!.longitude.toStringAsFixed(6)}  '
-                    '정확도: ${_currentAccuracy.toStringAsFixed(0)}m',
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    '경도: ${_currentPosition!.longitude.toStringAsFixed(6)}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                     textAlign: TextAlign.center,
                   ),
                 ],
               ),
             ),
           ),
+
           MapControlsWidget(
             isFollowing: _isFollowing,
             onCenterPressed: () {
