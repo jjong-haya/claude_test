@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/location_service.dart';
 import '../services/building_service.dart';
+import '../services/kalman_filter.dart';
 import '../models/location_data.dart';
 import '../models/building.dart';
 import '../widgets/location_marker.dart';
@@ -30,6 +31,7 @@ class _MapScreenState extends State<MapScreen> {
 
   List<Building> _buildings = [];
   String? _currentBuildingName;
+  KalmanLatLng? _kalman;
 
   // 운동장 긴 면이 수평이 되도록 회전 (counter-clockwise)
   static const double _mapRotation = -36.4;
@@ -58,9 +60,16 @@ class _MapScreenState extends State<MapScreen> {
 
     try {
       final initial = await _locationService.getCurrentLocation();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      _kalman = KalmanLatLng(
+        lat: initial.latitude,
+        lng: initial.longitude,
+        accuracy: initial.accuracy,
+        timestamp: now,
+      );
       setState(() {
-        _currentPosition = LatLng(initial.latitude, initial.longitude);
-        _currentAccuracy = initial.accuracy;
+        _currentPosition = LatLng(_kalman!.latitude, _kalman!.longitude);
+        _currentAccuracy = _kalman!.accuracy;
         _isLoading = false;
         _updateCurrentBuilding();
       });
@@ -73,9 +82,16 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     _locationSub = _locationService.locationStream.listen((update) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final (filteredLat, filteredLng) = _kalman!.update(
+        lat: update.latitude,
+        lng: update.longitude,
+        accuracy: update.accuracy,
+        timestamp: now,
+      );
       setState(() {
-        _currentPosition = LatLng(update.latitude, update.longitude);
-        _currentAccuracy = update.accuracy;
+        _currentPosition = LatLng(filteredLat, filteredLng);
+        _currentAccuracy = _kalman!.accuracy;
         _updateCurrentBuilding();
       });
       if (_isFollowing && _mapReady) {
