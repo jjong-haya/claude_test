@@ -23,6 +23,7 @@ class _MapScreenState extends State<MapScreen> {
   double _currentAccuracy = 0;
   bool _isFollowing = true;
   bool _isLoading = true;
+  bool _mapReady = false;
   String? _error;
 
   @override
@@ -50,7 +51,6 @@ class _MapScreenState extends State<MapScreen> {
         _currentAccuracy = initial.accuracy;
         _isLoading = false;
       });
-      _mapController.move(_currentPosition!, 16.0);
     } catch (e) {
       setState(() {
         _error = '위치를 가져올 수 없습니다: $e';
@@ -64,12 +64,19 @@ class _MapScreenState extends State<MapScreen> {
         _currentPosition = LatLng(update.latitude, update.longitude);
         _currentAccuracy = update.accuracy;
       });
-      if (_isFollowing) {
+      if (_isFollowing && _mapReady) {
         _mapController.move(_currentPosition!, _mapController.camera.zoom);
       }
     });
 
     await _locationService.startTracking();
+  }
+
+  void _onMapReady() {
+    _mapReady = true;
+    if (_currentPosition != null) {
+      _mapController.move(_currentPosition!, 16.0);
+    }
   }
 
   @override
@@ -130,6 +137,7 @@ class _MapScreenState extends State<MapScreen> {
             options: MapOptions(
               initialCenter: _currentPosition ?? const LatLng(37.5665, 126.9780),
               initialZoom: 16.0,
+              onMapReady: _onMapReady,
               onPositionChanged: (camera, hasGesture) {
                 if (hasGesture && _isFollowing) {
                   setState(() => _isFollowing = false);
@@ -194,7 +202,7 @@ class _MapScreenState extends State<MapScreen> {
             isFollowing: _isFollowing,
             onCenterPressed: () {
               setState(() => _isFollowing = true);
-              if (_currentPosition != null) {
+              if (_currentPosition != null && _mapReady) {
                 _mapController.move(
                   _currentPosition!,
                   _mapController.camera.zoom,
