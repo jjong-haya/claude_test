@@ -1,21 +1,23 @@
-import 'dart:developer' as developer;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import 'app.dart';
 
 @pragma('vm:entry-point')
 void backgroundGeolocationHeadlessTask(bg.HeadlessEvent headlessEvent) async {
-  // 앱이 종료된 상태에서도 위치 이벤트를 처리
-  switch (headlessEvent.name) {
-    case bg.Event.LOCATION:
-      bg.Location location = headlessEvent.event;
-      developer.log('[headless] location: ${location.coords.latitude}, ${location.coords.longitude}');
-      break;
+  if (headlessEvent.name == bg.Event.LOCATION) {
+    bg.Location location = headlessEvent.event;
+    debugPrint('[headless] location: ${location.coords.latitude}, ${location.coords.longitude}');
   }
 }
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  bg.BackgroundGeolocation.registerHeadlessTask(backgroundGeolocationHeadlessTask);
+
+  // headless task는 모바일에서만 등록 (웹에서는 지원 안 됨)
+  if (!kIsWeb) {
+    bg.BackgroundGeolocation.registerHeadlessTask(backgroundGeolocationHeadlessTask);
+  }
+
   runApp(const MyApp());
 }

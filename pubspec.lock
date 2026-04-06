@@ -390,7 +390,7 @@ packages:
     source: hosted
     version: "15.0.2"
   web:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: web
       sha256: "868d88a33d8a87b18ffc05f9f030ba328ffefba92d6c127917a2ba740f9cfe4a"
@@ -406,5 +406,5 @@ packages:
     source: hosted
     version: "2.0.0"
 sdks:
-  dart: ">=3.9.0 <4.0.0"
+  dart: ">=3.11.4 <4.0.0"
   flutter: ">=3.27.0"
