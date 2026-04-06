@@ -31,8 +31,8 @@ class _MapScreenState extends State<MapScreen> {
   List<Building> _buildings = [];
   String? _currentBuildingName;
 
-  // 운동장 변 기준 회전 각도
-  static const double _mapRotation = 36.2;
+  // 운동장 긴 면이 수평이 되도록 회전 (counter-clockwise)
+  static const double _mapRotation = -36.4;
 
   @override
   void initState() {
@@ -94,9 +94,8 @@ class _MapScreenState extends State<MapScreen> {
 
   void _onMapReady() {
     _mapReady = true;
-    if (_currentPosition != null) {
-      _mapController.move(_currentPosition!, 17.0);
-    }
+    final center = _currentPosition ?? const LatLng(37.6105, 126.9968);
+    _mapController.moveAndRotate(center, 17.0, _mapRotation);
   }
 
   @override
