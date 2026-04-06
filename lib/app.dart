@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/map_screen.dart';
+import 'screens/mapbox_map_screen.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
         colorSchemeSeed: Colors.blue,
         useMaterial3: true,
       ),
-      home: const MapScreen(),
+      home: const MapboxMapScreen(),
     );
   }
 }
